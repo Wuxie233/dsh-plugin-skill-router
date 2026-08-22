@@ -45,7 +45,7 @@ dsh 升级或 profile heal 之后重新跑一次 `./install.sh`。
     - id: skill-router
       name: '@wuxie/dsh-skill-router'
       config:
-        skillRoot: /root/.dsh/skills   # 默认 ~/.dsh/skills
+        skillRoot: ~/.dsh/skills       # 默认 ~/.dsh/skills
         extraRoots: []                 # 额外扫描的 skill 根目录
 ```
 
