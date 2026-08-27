@@ -1,7 +1,7 @@
 {
   "name": "@wuxie/dsh-skill-router",
-  "description": "Two-level skill routing: filters the session skill catalog to router/standalone entries, keeps routed sub-skills loadable by name",
-  "version": "0.1.0",
+  "description": "Two-level skill routing plus pack-filtered catalog attention; routed and unopened-pack skills stay loadable by name",
+  "version": "0.2.0",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -12,6 +12,8 @@
   },
   "license": "MIT",
   "peerDependencies": {
+    "@deepseek-ai/dsh-llm": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-sandbox-policy": "^0.1.0-rc.6",
     "@deepseek-ai/schemastery": "^3.18.1"
   }
 }

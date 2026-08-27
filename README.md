@@ -1,29 +1,37 @@
 # dsh-plugin-skill-router
 
-二级 skill 路由插件：把模型可见的会话 skill 目录（catalog）过滤为
-router + 独立 skill，路由子 skill 隐藏但仍可按名加载。catalog 文本从
-全量（~108 条）降到 ~42 条，直接节省每会话开头的提示词 token 和注意力。
+二级 skill 路由 + 包过滤：模型可见的会话 skill 目录只渲染 router、
+always-on 独立 skill，以及当前仓开了的领域包。子 skill / 未开包的领域
+skill 隐藏，但仍可按名或 `/name` 加载。
+
+默认 No Repo 大约十几条（主链 + host-ops-router + engineering-crosscut）。
+开 `.dsh/skill-packs.yml` 后才加回对应 router / 独立项。
 
 ## 行为
 
 扫描 `~/.dsh/skills/`（可配 `skillRoot` / `extraRoots`）下每个 skill 的
-SKILL.md frontmatter：
+SKILL.md frontmatter，再叠加 `packs.yml`：
 
-| 声明 | 目录可见性 |
+| 声明 / 包 | 目录可见性 |
 | --- | --- |
-| `exposure: root` | ✅ 显示（router / 直接可用的专家） |
-| `exposure: explicit` | ❌ 隐藏（`/name` 手势或 router 正文点名加载） |
-| `routers: [name, ...]`（无 exposure） | ❌ 隐藏（router 路由，`skill` 工具按名可加载） |
-| 两者都没有 | ✅ 显示（独立 skill） |
+| `exposure: root` 且包开着 / always-on / 主链 | ✅ |
+| `exposure: explicit` | ❌（`/name` 或点名加载） |
+| `routers: [name, ...]` | ❌（router 路由，`skill` 工具按名可加载） |
+| 领域包未开 | ❌（点名或 `/name` 仍可加载） |
+| 两者都没有，且包开着 / 未分类主链 | ✅ |
 
-隐藏发生时目录末尾追加一行提示，告知模型还有未列出的 skill 可通过
-router 或精确名加载。**durable `source.entries` 保持全量不动**——
-tool-skill 的 digest 重发判定基于 entries 而非渲染文本，所以本插件永不
-触发目录重发，KV cache 前缀稳定。
+隐藏发生时目录末尾追加一行提示。**durable `source.entries` 保持全量不动**——
+tool-skill 的 digest 重发判定基于 entries 而非渲染文本。开包集合因改挂变化时，
+本插件从 entries 重建一条替换 catalog，并在渲染文本里写
+`<!-- dsh-pack-key:... -->`（HTML 注释，模型当噪声）。
+
+包表：`~/CODE/agent-habits/skills/skill-topology/packs.yml`。
+开包文件：会话 cwd / extraRoots 及其祖先的 `.dsh/skill-packs.yml`，取并集。
 
 ## 安装 / 更新
 
 ```sh
+node scripts/logic.test.mjs
 ./install.sh          # 部署到 ~/.dsh/profiles/node_modules/@wuxie/dsh-skill-router
 # 然后重启 dsh web（host 半插件需要重启生效）
 ```
@@ -45,15 +53,18 @@ dsh 升级或 profile heal 之后重新跑一次 `./install.sh`。
     - id: skill-router
       name: '@wuxie/dsh-skill-router'
       config:
-        skillRoot: ~/.dsh/skills       # 默认 ~/.dsh/skills
-        extraRoots: []                 # 额外扫描的 skill 根目录
+        skillRoot: ~/.dsh/skills
+        extraRoots: []
+        packsFile: ~/CODE/agent-habits/skills/skill-topology/packs.yml
 ```
+
+`packsFile: ""` 关掉包过滤，只保留二级路由。
 
 ## 已知限制
 
-- frontmatter 解析是 `exposure` / `routers` 的定向子集（支持 flow 与
-  block 序列、`>-`/`|-` 块标量跳行），不解析其他字段；非法值按未声明
+- frontmatter 解析是 `exposure` / `routers` 的定向子集；非法值按未声明
   处理（该 skill 保持可见），不会报错。
-- 过滤只作用于模型可见文本；UI 侧（slash 列表等）仍显示全部 skill，
-  这是刻意的：显式调用应能触达所有 skill。
-- 隐藏集合扫描有 10s TTL 缓存，新增/修改 frontmatter 后最多 10 秒生效。
+- 过滤只作用于模型可见文本；UI 侧（slash 列表等）仍显示全部 skill。
+- 隐藏集合 / 包表扫描有 10s TTL 缓存。
+- 项目级例外（`tooldelta-agent-bridge`、`sub2api-update`）仍可从用户根
+  按名加载；模型目录只在其 home 或祖先开了 `enablingPack` 时出现。
