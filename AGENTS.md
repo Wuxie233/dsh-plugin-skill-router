@@ -20,3 +20,8 @@
   真实路径导致 `@deepseek-ai/schemastery` 无法从 profile 解析。
 - 包名三处一致：package.json / cordis.patch.yml 挂载行 name。
 - 纯函数在 `lib/logic.js`；`node scripts/logic.test.mjs` 必须绿。
+- DSH 0.1.2-alpha.1：catalog `source` 仍是 `kind: skill-catalog` + `form: catalog` +
+  可选 `update: true` + `entries`（全量）。`createUserMessage` 会 deep-freeze；
+  改写只 spread 新 message / 新 text block，禁止 mutate `content`。
+- `scripts/logic.test.mjs` 末段解析 live `packs.yml`；拓扑改名后要同步断言，
+  不要把已退役的成员名当成插件回归。

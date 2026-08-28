@@ -196,7 +196,8 @@ const realPacks = parsePacksTable(parseLooseYaml(
 ))
 assert.equal(realPacks.alwaysOn.has('host-ops'), true)
 assert.equal(realPacks.catalogNames.get('gsap-router'), 'gsap')
-assert.equal(realPacks.nameToPack.get('humanizer'), 'writing-polish')
+assert.equal(realPacks.nameToPack.get('writing-dna-skill'), 'writing-polish')
+assert.equal(realPacks.nameToPack.get('lieflat-less-ai-tone'), 'writing-polish')
 assert.equal(realPacks.nameToPack.get('mcbe-text-render'), 'mc')
 assert.equal(realPacks.independentWhenOpen.get('rest')?.has('learning-router'), true)
 assert.equal(realPacks.independentWhenOpen.get('rest')?.has('frontend-craft-learning-expert'), false)
@@ -207,7 +208,7 @@ const mcFile = parseEnabledPacks(parseLooseYaml(
 ))
 assert.equal(mcFile.has('mc'), true)
 assert.equal(packHides('mc-bedrock-architecture-router', realPacks, mcFile, ['/root/CODE/Minecraft']), false)
-assert.equal(packHides('humanizer', realPacks, none(), ['/root/.dsh/no-repo']), true)
+assert.equal(packHides('writing-dna-skill', realPacks, none(), ['/root/.dsh/no-repo']), true)
 assert.equal(packHides('grill-with-docs', realPacks, none(), ['/root/.dsh/no-repo']), false)
 
 console.log('logic.test.mjs: ok')
