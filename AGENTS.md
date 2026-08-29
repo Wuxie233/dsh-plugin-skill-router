@@ -9,6 +9,11 @@
   `Cannot read properties of undefined (reading 'validate')`。
 - 目录改写**只动 `content[].text`，绝不动 `source.entries`**：tool-skill
   的 digest/重发判定基于 entries；动 entries 会每步重发目录，KV cache 报废。
+- Native 预设（`agentPreset === 'native'`）额外从渲染目录藏 `team-spec-workflow`
+  与 `agent-teams`。名单在 `NATIVE_HIDDEN_SKILL_NAMES`。slash / 点名加载仍可。
+  预设 id 优先 `sessionProjections.stateOf(session, 'agentPreset')`，回退
+  `header.agentPreset`；两者都缺则不藏（Team skill 仍出现在第一份 catalog）。
+  packKey 带 `|presetId`，投影晚到时下一步会从 entries 重建。
 - 开包集合变化时从 `source.entries` **重建**渲染文本，不要在已经滤过的
   prose 上再滤一层。packKey 写在 `<!-- dsh-pack-key:... -->`，不进 source。
 - 不要 import `yaml`：profile 的 node_modules 解析不到。packs.yml 走

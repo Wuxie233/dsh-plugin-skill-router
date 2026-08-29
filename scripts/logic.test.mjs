@@ -4,11 +4,14 @@ import {
   catalogLineNames,
   embedPackKey,
   hiddenNames,
+  NATIVE_HIDDEN_SKILL_NAMES,
+  NATIVE_PRESET_ID,
   packHides,
   packKeyOf,
   parseEnabledPacks,
   parseLooseYaml,
   parsePacksTable,
+  presetCatalogHidden,
   projectPrivateVisible,
   readPackKey,
   renderFilteredCatalog,
@@ -210,5 +213,61 @@ assert.equal(mcFile.has('mc'), true)
 assert.equal(packHides('mc-bedrock-architecture-router', realPacks, mcFile, ['/root/CODE/Minecraft']), false)
 assert.equal(packHides('writing-dna-skill', realPacks, none(), ['/root/.dsh/no-repo']), true)
 assert.equal(packHides('grill-with-docs', realPacks, none(), ['/root/.dsh/no-repo']), false)
+
+// --- Native preset hides Team-only names; team/standard/missing do not ---
+assert.equal(NATIVE_PRESET_ID, 'native')
+assert.deepEqual([...NATIVE_HIDDEN_SKILL_NAMES], ['team-spec-workflow', 'agent-teams'])
+assert.deepEqual([...presetCatalogHidden('native')].sort(), ['agent-teams', 'team-spec-workflow'])
+assert.equal(presetCatalogHidden('team').size, 0)
+assert.equal(presetCatalogHidden('standard').size, 0)
+assert.equal(presetCatalogHidden(undefined).size, 0)
+assert.equal(presetCatalogHidden(null).size, 0)
+assert.equal(presetCatalogHidden('').size, 0)
+assert.equal(presetCatalogHidden('Native').size, 0, 'preset id match is exact, not case-folded')
+
+const catalogNames = ['writing', 'team-spec-workflow', 'agent-teams', 'grill-with-docs', 'humanizer']
+const nativeHidden = hiddenNames(none(), catalogNames, table, none(), ['/root/.dsh/no-repo'], 'native')
+assert.ok(nativeHidden.has('team-spec-workflow'))
+assert.ok(nativeHidden.has('agent-teams'))
+assert.ok(nativeHidden.has('humanizer'), 'pack filtering still applies on native')
+assert.equal(nativeHidden.has('writing'), false)
+assert.equal(nativeHidden.has('grill-with-docs'), false)
+
+const teamHidden = hiddenNames(none(), catalogNames, table, none(), ['/root/.dsh/no-repo'], 'team')
+assert.equal(teamHidden.has('team-spec-workflow'), false)
+assert.equal(teamHidden.has('agent-teams'), false)
+assert.ok(teamHidden.has('humanizer'))
+
+const standardHidden = hiddenNames(none(), catalogNames, table, none(), ['/root/.dsh/no-repo'], 'standard')
+assert.equal(standardHidden.has('team-spec-workflow'), false)
+assert.equal(standardHidden.has('agent-teams'), false)
+
+const missingPresetHidden = hiddenNames(none(), catalogNames, table, none(), ['/root/.dsh/no-repo'])
+assert.equal(missingPresetHidden.has('team-spec-workflow'), false)
+assert.equal(missingPresetHidden.has('agent-teams'), false)
+
+const nativeCatalog = renderFilteredCatalog(
+  [
+    { name: 'writing', description: 'Drafting prose.' },
+    { name: 'team-spec-workflow', description: 'Team spec DAG.' },
+    { name: 'agent-teams', description: 'Captain protocol.' },
+  ],
+  hiddenNames(none(), ['writing', 'team-spec-workflow', 'agent-teams'], table, none(), ['/root/.dsh/no-repo'], 'native'),
+)
+assert.ok(nativeCatalog.includes('`writing`'))
+assert.equal(nativeCatalog.includes('`team-spec-workflow`'), false)
+assert.equal(nativeCatalog.includes('`agent-teams`'), false)
+assert.ok(nativeCatalog.includes('Some skills are not listed here'))
+
+const teamCatalog = renderFilteredCatalog(
+  [
+    { name: 'writing', description: 'Drafting prose.' },
+    { name: 'team-spec-workflow', description: 'Team spec DAG.' },
+    { name: 'agent-teams', description: 'Captain protocol.' },
+  ],
+  hiddenNames(none(), ['writing', 'team-spec-workflow', 'agent-teams'], table, none(), ['/root/.dsh/no-repo'], 'team'),
+)
+assert.ok(teamCatalog.includes('`team-spec-workflow`'))
+assert.ok(teamCatalog.includes('`agent-teams`'))
 
 console.log('logic.test.mjs: ok')

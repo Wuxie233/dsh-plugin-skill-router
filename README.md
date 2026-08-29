@@ -25,6 +25,10 @@ tool-skill 的 digest 重发判定基于 entries 而非渲染文本。开包集�
 本插件从 entries 重建一条替换 catalog，并在渲染文本里写
 `<!-- dsh-pack-key:... -->`（HTML 注释，模型当噪声）。
 
+会话预设恰好是 `native` 时，渲染目录再藏 `team-spec-workflow` 与
+`agent-teams`（Team 专用）。`team` / `standard` / 其它预设不藏。slash 与
+点名加载仍可用。
+
 包表：`~/CODE/agent-habits/skills/skill-topology/packs.yml`。
 开包文件：会话 cwd / extraRoots 及其祖先的 `.dsh/skill-packs.yml`，取并集。
 
@@ -65,6 +69,8 @@ dsh 升级或 profile heal 之后重新跑一次 `./install.sh`。
 - frontmatter 解析是 `exposure` / `routers` 的定向子集；非法值按未声明
   处理（该 skill 保持可见），不会报错。
 - 过滤只作用于模型可见文本；UI 侧（slash 列表等）仍显示全部 skill。
+- Native 藏 Team skill 依赖会话 `agentPreset`。header 与投影都缺时第一份
+  catalog 仍会列出它们；投影随后到达会因 packKey 含预设 id 而重建目录。
 - 隐藏集合 / 包表扫描有 10s TTL 缓存。
 - 项目级例外（`tooldelta-agent-bridge`、`sub2api-update`）仍可从用户根
   按名加载；模型目录只在其 home 或祖先开了 `enablingPack` 时出现。
