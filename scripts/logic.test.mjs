@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { strict as assert } from 'node:assert'
 import {
   catalogLineNames,
@@ -9,7 +8,6 @@ import {
   packHides,
   packKeyOf,
   parseEnabledPacks,
-  parseLooseYaml,
   parsePacksTable,
   presetCatalogHidden,
   projectPrivateVisible,
@@ -156,7 +154,7 @@ const rewritten = rewriteCatalogText(catalog, new Set(['humanizer', 'gsap-router
 assert.ok(rewritten.includes('`writing`'))
 assert.equal(rewritten.includes('`humanizer`'), false)
 assert.equal(rewritten.includes('`gsap-router`'), false)
-assert.ok(rewritten.includes('Some skills are not listed here'))
+assert.ok(rewritten.includes('filtered attention catalog'))
 assert.deepEqual(catalogLineNames(rewritten), ['writing'])
 
 const routed = new Set(['playwright'])
@@ -190,34 +188,29 @@ const rebuilt = renderFilteredCatalog(
 )
 assert.ok(rebuilt.includes('`writing`'))
 assert.equal(rebuilt.includes('`humanizer`'), false)
-assert.ok(rebuilt.includes('The available skill catalog changed'))
-assert.ok(rebuilt.includes('Some skills are not listed here'))
+assert.ok(rebuilt.includes('The advertised skill catalog changed'))
+assert.ok(rebuilt.includes('filtered attention catalog'))
+assert.ok(!rebuilt.includes('Use only names'))
 
-// --- real packs.yml + Minecraft skill-packs.yml parse ---
-const realPacks = parsePacksTable(parseLooseYaml(
-  readFileSync('/root/CODE/agent-habits/skills/skill-topology/packs.yml', 'utf8'),
-))
-assert.equal(realPacks.alwaysOn.has('host-ops'), true)
-assert.equal(realPacks.catalogNames.get('gsap-router'), 'gsap')
-assert.equal(realPacks.nameToPack.get('writing-dna-skill'), 'writing-polish')
-assert.equal(realPacks.nameToPack.get('lieflat-less-ai-tone'), 'writing-polish')
-assert.equal(realPacks.nameToPack.get('mcbe-text-render'), 'mc')
-assert.equal(realPacks.independentWhenOpen.get('rest')?.has('learning-router'), true)
-assert.equal(realPacks.independentWhenOpen.get('rest')?.has('frontend-craft-learning-expert'), false)
-assert.equal(realPacks.projectPrivate.get('sub2api-update')?.home, '/root/CODE/sub2api-fork')
-
-const mcFile = parseEnabledPacks(parseLooseYaml(
-  readFileSync('/root/CODE/Minecraft/.dsh/skill-packs.yml', 'utf8'),
-))
-assert.equal(mcFile.has('mc'), true)
-assert.equal(packHides('mc-bedrock-architecture-router', realPacks, mcFile, ['/root/CODE/Minecraft']), false)
-assert.equal(packHides('writing-dna-skill', realPacks, none(), ['/root/.dsh/no-repo']), true)
-assert.equal(packHides('grill-with-docs', realPacks, none(), ['/root/.dsh/no-repo']), false)
+// Machine YAML/provider checks live in core.test.mjs; pure tests use independent fixtures.
+assert.throws(() => parsePacksTable({ packs: '[' }), /mapping/)
+assert.throws(() => parsePacksTable({ packs: { mc: { catalog: 'mc-router', alwaysOn: 'true' } } }), /boolean/)
+assert.throws(() => parsePacksTable({ packs: { mc: { catalog: 'mc-router', member: [] } } }), /unknown field/)
+assert.throws(() => parsePacksTable({ alwaysOn: ['missing'] }), /undefined pack/)
+assert.throws(() => parseEnabledPacks({ packs: 'mc' }), /array/)
+assert.throws(() => parseEnabledPacks({ pack: ['mc'] }), /unknown field/)
+assert.throws(() => parseEnabledPacks(['mc', 'mc']), /duplicate/)
+assert.throws(() => parseEnabledPacks([false]), /name/)
+assert.deepEqual([...parseEnabledPacks(['mc'])], ['mc'])
+const hiddenOnly = renderFilteredCatalog([{ name: 'child', description: 'hidden' }], new Set(['child']), { update: true })
+assert.ok(hiddenOnly.includes('No skills are advertised'))
+assert.ok(!hiddenOnly.includes('No skills are currently available'))
+assert.ok(!hiddenOnly.includes('Use only names'))
 
 // --- Native preset hides Team-only names; team/standard/missing do not ---
 assert.equal(NATIVE_PRESET_ID, 'native')
-assert.deepEqual([...NATIVE_HIDDEN_SKILL_NAMES], ['team-spec-workflow', 'agent-teams'])
-assert.deepEqual([...presetCatalogHidden('native')].sort(), ['agent-teams', 'team-spec-workflow'])
+assert.deepEqual([...NATIVE_HIDDEN_SKILL_NAMES], ['team-spec-workflow', 'agent-teams', 'bugbot-review'])
+assert.deepEqual([...presetCatalogHidden('native')].sort(), ['agent-teams', 'bugbot-review', 'team-spec-workflow'])
 assert.equal(presetCatalogHidden('team').size, 0)
 assert.equal(presetCatalogHidden('standard').size, 0)
 assert.equal(presetCatalogHidden(undefined).size, 0)
@@ -257,7 +250,7 @@ const nativeCatalog = renderFilteredCatalog(
 assert.ok(nativeCatalog.includes('`writing`'))
 assert.equal(nativeCatalog.includes('`team-spec-workflow`'), false)
 assert.equal(nativeCatalog.includes('`agent-teams`'), false)
-assert.ok(nativeCatalog.includes('Some skills are not listed here'))
+assert.ok(nativeCatalog.includes('filtered attention catalog'))
 
 const teamCatalog = renderFilteredCatalog(
   [
