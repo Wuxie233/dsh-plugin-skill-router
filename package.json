@@ -11,9 +11,9 @@
     "./package.json": "./package.json"
   },
   "license": "MIT",
-  "peerDependencies": {
-    "@deepseek-ai/dsh-llm": "^0.1.2-alpha.1",
-    "@deepseek-ai/dsh-sandbox-policy": "^0.1.2-alpha.1",
-    "@deepseek-ai/schemastery": "^3.18.1"
-  }
+  "peerDependencies": {},
+  "files": [
+    "lib/",
+    "dsh-plugin.json"
+  ]
 }
