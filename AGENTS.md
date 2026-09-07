@@ -2,59 +2,20 @@
 
 ## Architecture
 
-标准 host facet：`lib/index.js` 发布 `plugins.starpivot.dev/v1 HostPlugin`，
-`lib/host.js` 的 `createHost(api)` 负责模型目录的注意力过滤。原生导入只在
-`/root/CODE/dsh-std/packages/adapter-dsh`；不要恢复旧 Cordis 直接挂载方式。
+标准 HostPlugin facet，`lib/host.js` 只订阅原生 `agent/skill-catalog` waterfall。调用 `next()` 后返回原 summary 对象子集，core 拥有目录正文、`source.entries`、digest 和持久化。不恢复 pre-step prose 重写或自行构造 catalog 消息。
 
-模型目录不是加载器权限表。只改 `content[].text`，保留完整、不可变的
-`source.entries` 及其它 core-owned source 字段；core tool-skill 的 digest
-和重发判断依赖它们。禁用模型调用的条目仍由 core 排除/拒绝。
+`searchAvailable` 由 core 按原生工具精确注册身份计算；不是 true 时保留全部摘要。原生 `skill_search` 搜完整可调用 registry，不受广告 selector 影响。原生 `skill` 和用户显式调用继续维护 invocation flags。
 
 ## Conventions
 
-- 以 `skills.snapshot/get({ cwd, extraRoots, scope: agent, signal })` 的当前
-  winner 为准。`path` 是 provider 明确返回的 body 文件，读取其 frontmatter；
-  无 `path` 的 provider 用返回的 `metadata.exposure/routers`。目录/URL/opaque
-  `resourceBase` 只表示相对资源定位，不要猜成 `SKILL.md`，不要扫描 losing roots。
-- HostPlugin `services` 和原生 `inject` 都要求 `skills`。当前 Cordis inject
-  支持数组或 service→intercept map，不支持 `{ required, optional }`。
-  可选 `sandboxPolicy` / `sessionProjections` 用 `ctx.get`。
-- `api.parseYaml` 由 adapter 严格解析；插件独占 routing/pack schema。
-  helper 缺失时在 factory admission 报兼容错误，不等运行 hook 才失败。
+- 仅用 directory `resourceBase` 的真实路径判定共享来源；解析目录 symlink，不读取 skill 正文，不猜测 URL/opaque hint。来源不明保留广告。
+- 默认共享 root 为 `/root/CODE/agent-skills/skills`，可用 `sharedRoots` 修改。根入口由 `rootNames` 配置；不对 Native 硬编码隐藏。
+- `skillRoot`、`extraRoots`、`packsFile` 仅兼容旧配置，不产生作用。没有 pack 表、routing schema、TTL、stamp 或正文 metadata 读取。
+- `lib/index.js` 发布 HostPlugin；manifest services 和 native inject 都为空，selector 不直接使用 registry/tools 服务。
 
-## Gotchas & Decisions
+## Verification
 
-- 渲染 stamp 包含 preset、effective roots、winner provenance、routing metadata、
-  pack table/selection、最终隐藏集合及诊断。使用 canonical digest，放在
-  `<!-- dsh-pack-key:...|v2:... -->`，不写入 source。相同输入不重复注入；
-  同包 rehome、exposure/member 改动也会替换。替换从 full entries 重建。
-- 每步重新查询 registry winner，解析 body metadata/机器包表缓存 10 秒。
-  TTL 到期本身不触发重发；语义变化才触发。项目 pack selection 每步读取。
-- 机器表缺失/非法、项目选择非法、registry 不完整时，隐藏这份注意力目录并给
-  修复诊断；单个 resource 缺失或 metadata 非法只隐藏该条。诊断最多五条，
-  不回显 YAML/provider body。相同故障不每步追加。修复后按缓存周期恢复。
-- Native 恰好 `native` 时隐藏 `team-spec-workflow`、`agent-teams`、
-  `bugbot-review`。投影优先、header 回退；两者缺失不猜模式，晚到投影会重建。
-- `skillRoot/extraRoots` 只为旧配置兼容保留，已不用于扫描。实际 discovery roots
-  由 core provider 配置决定。`packsFile: ""` 明确关闭 pack table/selection 过滤。
-- plugin source 不直接依赖 `yaml`；adapter 声明并打包依赖供复制部署。
-
-## Commands
-
-- `node scripts/logic.test.mjs`：pure helpers/schema 的独立 fixture。
-- `node scripts/host.test.mjs`：真实 host 源码 + 内存 filesystem/clock/registry；
-  自动启用 VM modules。使用同级 adapter parser，不依赖 profile yaml。
-- `node scripts/core.test.mjs`：在 adapter-owned fixture 中运行真实
-  Cordis/SkillRegistry/FileSystemSkillProvider/tool-skill。使用当前绑定的 candidate
-  （可显式 `DSH_HARNESS_ROOT` / `DSH_ADAPTER_ROOT`）；隔离 Session，不读写真实
-  user session，watchers 关闭，数据盘临时文件和 fibers 在 finally 清理。
-- `git diff --check`。完整 workspace/check-candidate 与授权部署由终端集成负责。
-  不把 source tooling symlink 当可部署 runtime；部署仍用已有共享复制门禁。
-
-## Module Map
-
-- `lib/host.js`：hook、effective lookup、故障收敛、cache/stamp。
-- `lib/logic.js`：包可见性、模式隐藏、attention prose。
-- `lib/schema.js`：机器表、项目选择与 routing field 验证。
-- `scripts/*.test.mjs`：独立逻辑、host、真实 core 回归入口。
-- `docs/verification.md`：本次 R1–R6 边界、原缺陷重现及精确验证命令。
+- `node scripts/logic.test.mjs`：来源、路径边界、未知来源回退、对象身份。
+- `node scripts/host.test.mjs`：目录 symlink、无正文选择、搜索缺失回退、旧配置忽略、取消信号。
+- `DSH_HARNESS_ROOT=/path/to/compatible/harness node scripts/core.test.mjs`：真实 core 与 adapter admission；新建无需登记即可搜索/加载、entries 与正文一致、卸载恢复。fixture 位于本插件 `scripts/core.fixture.mjs`，临时资源在数据盘且 finally 清理。
+- `git diff --check`。共享 candidate gate 和授权部署仍由集成方负责；不得把测试通过当成 live host 更新。
