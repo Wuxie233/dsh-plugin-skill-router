@@ -18,4 +18,5 @@
 - `node scripts/logic.test.mjs`：来源、路径边界、未知来源回退、对象身份。
 - `node scripts/host.test.mjs`：目录 symlink、无正文选择、搜索缺失回退、旧配置忽略、取消信号。
 - `DSH_HARNESS_ROOT=/path/to/compatible/harness node scripts/core.test.mjs`：真实 core 与 adapter admission；新建无需登记即可搜索/加载、entries 与正文一致、卸载恢复。fixture 位于本插件 `scripts/core.fixture.mjs`，临时资源在数据盘且 finally 清理。
+- core 未提供原生 `skill_search` 时，上述集成测试验证安全回退：完整广告与 entries 一致、新技能无需登记即可广告和通过原生 `skill` 加载、卸载 selector 后仍完整广告；明确报告搜索专项不适用，不声称验证搜索或广告筛选能力。
 - `git diff --check`。共享 candidate gate 和授权部署仍由集成方负责；不得把测试通过当成 live host 更新。

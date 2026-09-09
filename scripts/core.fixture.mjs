@@ -26,7 +26,10 @@ const { FileSystemSkillProvider } = await native('@deepseek-ai/dsh-skill-filesys
 const toolSkill = await native('@deepseek-ai/dsh-tool-skill')
 const { default: Tools } = await native('@deepseek-ai/dsh-tools')
 const { default: SystemPrompt } = await native('@deepseek-ai/dsh-system-prompt')
-const { default: Agents, agentEvents, Inbox } = await native('@deepseek-ai/dsh-agent')
+const { default: Agents, agentEvents } = await native('@deepseek-ai/dsh-agent')
+const { default: SessionProjections } = await native('@deepseek-ai/dsh-session-projection')
+// Inbox is now an interface; exercise the candidate driver's concrete projection-backed inbox.
+const { ReactLoopInbox } = await import(pathToFileURL(join(packages.get('@deepseek-ai/dsh-agent-loop'), 'src/inbox.ts')).href)
 const { createScope } = await native('@deepseek-ai/dsh-scope')
 const { Session, SessionId, SESSION_FORMAT_VERSION } = await native('@deepseek-ai/dsh-session')
 const { createUserMessage } = await native('@deepseek-ai/dsh-llm')
@@ -38,7 +41,7 @@ const temp = await mkdtemp('/flyshop/dev/tmp/skill-selector-core-')
 const root = new Context()
 let disposeSelector, scope, provider
 try {
-  for (const service of [SystemPrompt, Tools, Agents, SkillRegistry]) await root.plugin(service)
+  for (const service of [SystemPrompt, Tools, Agents, SkillRegistry, SessionProjections]) await root.plugin(service)
   const home = join(temp, 'home'), shared = join(home, 'skills'), project = join(temp, 'project')
   await mkdir(project)
   async function put(name) {
@@ -54,7 +57,8 @@ try {
   disposeSelector = await installStarPivotHost(root, manifest.id, spec, { create }, { sharedRoots: [shared] })
   const id = SessionId('skill-selector-fixture')
   const session = Session.create(id, [], { version: SESSION_FORMAT_VERSION, id, createdAt: 0, cwd: project, isSeeded: false })
-  const agent = { id, options: {}, session, status: 'idle', ctx: root, inbox: new Inbox(session, { inserted() {}, discarded() {}, claimed() {} }) }
+  const agent = { id, options: {}, session, status: 'idle', ctx: root }
+  agent.inbox = new ReactLoopInbox(root.get('sessionProjections'), session, agentEvents(root, agent))
   session.append('turn/start', { turn: 1 })
   session.append('user/message', createUserMessage({ content: [{ type: 'text', text: 'fixture' }], source: { kind: 'user' } }), { surfaceOp: 'append' })
   scope = createScope(root, agent); agent.ctx = scope.ctx
@@ -67,19 +71,30 @@ try {
     assert.deepEqual(catalog.source.entries.map(entry => entry.name), names)
     return names
   }
-  assert.deepEqual(await propose(), ['skill-discovery'])
+  const search = root.get('tools').get('skill_search', agent)
+  const expectedInitial = search ? ['skill-discovery'] : ['old-child', 'skill-discovery']
+  assert.deepEqual(new Set(await propose()), new Set(expectedInitial))
   const file = await put('brand-new-no-registration'); provider.observeHostMutation(file)
   const exec = { agent, signal: new AbortController().signal }
-  const search = root.get('tools').get('skill_search', agent)
-  assert.ok(search)
-  const found = await search.execute({ query: 'brand-new-no-registration' }, exec)
-  assert.equal(found.skills[0].name, 'brand-new-no-registration')
-  const loaded = await root.get('tools').get('skill', agent).execute({ name: found.skills[0].name }, exec)
+  if (search) {
+    const found = await search.execute({ query: 'brand-new-no-registration' }, exec)
+    assert.equal(found.skills[0].name, 'brand-new-no-registration')
+  } else {
+    // A candidate without native search must advertise every skill, including new ones.
+    assert.deepEqual(new Set(await propose()), new Set(['skill-discovery', 'old-child', 'brand-new-no-registration']))
+  }
+  const skill = root.get('tools').get('skill', agent)
+  assert.ok(skill)
+  const loaded = await skill.execute({ name: 'brand-new-no-registration' }, exec)
   assert.match(loaded.content, /Body for brand-new-no-registration/)
-  assert.deepEqual(await propose(), ['skill-discovery'])
+  assert.deepEqual(new Set(await propose()), new Set(search
+    ? ['skill-discovery']
+    : ['skill-discovery', 'old-child', 'brand-new-no-registration']))
   await disposeSelector(); disposeSelector = undefined
   assert.deepEqual(new Set(await propose()), new Set(['skill-discovery', 'old-child', 'brand-new-no-registration']))
-  console.log('PASS real adapter/core: entries match text; new skill found and loaded without router metadata or pack registration; selector disposal restores full catalog')
+  console.log(search
+    ? 'PASS real adapter/core: entries match text; new skill searched and loaded without registration; selector disposal restores full catalog'
+    : 'PASS real adapter/core: native skill_search unavailable; full catalog retained with selector mounted and disposed; new skill advertised and loaded without registration (search-only assertions not applicable)')
 } finally {
   if (disposeSelector) await disposeSelector()
   if (scope) await scope.dispose()
